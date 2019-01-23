@@ -1,41 +1,93 @@
-$(CXX) = g++
-CFLAGS = -std=c++0x
+#
+# Makefile for Fantasy Combat game
+#
 
-output: main.o Game.o Queue.o Character.o Barbarian.o Vampire.o BlueMen.o Medusa.o HarryPotter.o getInteger.o randomNumber.o
-	g++ main.o Game.o Queue.o Character.o Barbarian.o Vampire.o BlueMen.o Medusa.o HarryPotter.o getInteger.o randomNumber.o -o FantasyCombatGame
+# It is likely that default C compiler is already gcc, but explicitly
+# set, just to be sure
+CC          = g++
 
-main.o: main.cpp
-	g++ -c  -std=c++0x main.cpp	
+# The Target Binary Program
+TARGET      = FantasyGame
 
-Game.o: Game.cpp
-	g++ -c  -std=c++0x Game.cpp
+# The Directories, Source, Includes, Objects, Binary and Resources
+SRCDIR      = src
+INCDIR      = inc
+OBJDIR      = obj
+TARGETDIR   = bin
+RESDIR      = res
+SRCEXT      = cpp
+DEPEXT      = d
+OBJEXT      = o
 
-Queue.o: Queue.cpp
-	g++ -c  -std=c++0x Queue.cpp
+# Flags, Libraries and Includes
+# The CFLAGS variable sets compile flags for g++:
+# -g				Compile with debug information
+# -Wall				Give verbose compiler warnings		
+# -std=c++0x		Use the C++0x standard definition language
+CFLAGS      = -g -Wall -std=c++0x
 
-Character.o: Character.cpp
-	g++ -c  -std=c++0x Character.cpp
+# The LDFLAGS variable sets flags for linker
+LFLAGS = 
 
-Barbarian.o: Barbarian.cpp
-	g++ -c  -std=c++0x Barbarian.cpp
+# Libraries and Includes
+# -I$(INCDIR)		Tells compiler where to look for include files 
+LIB         = 
+INC         = -I$(INCDIR)
+INCDEP      = -I$(INCDIR)
 
-Vampire.o: Vampire.cpp
-	g++ -c  -std=c++0x Vampire.cpp
+#---------------------------------------------------------------------------------
+#DO NOT EDIT BELOW THIS LINE
+#---------------------------------------------------------------------------------
 
-BlueMen.o: BlueMen.cpp
-	g++ -c  -std=c++0x BlueMen.cpp
+# Source files are detected via shell find command
+SOURCES     := $(shell find $(SRCDIR) -type f -name *.$(SRCEXT))
+OBJECTS     := $(patsubst $(SRCDIR)/%,$(OBJDIR)/%,$(SOURCES:.$(SRCEXT)=.$(OBJEXT)))
 
-Medusa.o: Medusa.cpp
-	g++ -c  -std=c++0x Medusa.cpp
+# Default Make
+all: resources $(TARGET)
 
-HarryPotter.o: HarryPotter.cpp
-	g++ -c  -std=c++0x HarryPotter.cpp
+# Remake (Cleaner + Make)
+remake: cleaner all
 
-getInteger.o: getInteger.cpp
-	g++ -c -std=c++0x getInteger.cpp
+# Copy Resources from Resources Directory to Target Directory
+resources: directories
+	#@cp $(RESDIR)/* $(TARGETDIR)/
 
-randomNumber.o: randomNumber.cpp
-	g++ -c -std=c++0x randomNumber.cpp
+# Make the Directories
+directories:
+	@mkdir -p $(TARGETDIR)
+	@mkdir -p $(OBJDIR)
 
+# Clean only Objects
 clean:
-	rm *.o FantasyCombatGame
+	@$(RM) -rf $(OBJDIR)
+
+# Full Clean, Objects and Binaries
+cleaner: clean
+	@$(RM) -rf $(TARGETDIR)
+
+# Pull in dependency info for *existing* .o files
+-include $(OBJECTS:.$(OBJEXT)=.$(DEPEXT))
+
+# Link
+$(TARGET): $(OBJECTS)
+	$(CC) -o $(TARGETDIR)/$(TARGET) $^ $(LIB)
+
+# Compile project and automatically generate a dependency file for each 
+# object. This means that modification of headers and inline files will trigger 
+# recompilation of files which are dependent.
+$(OBJDIR)/%.$(OBJEXT): $(SRCDIR)/%.$(SRCEXT)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
+	@$(CC) $(CFLAGS) $(INCDEP) -MM $(SRCDIR)/$*.$(SRCEXT) > $(OBJDIR)/$*.$(DEPEXT)
+	@cp -f $(OBJDIR)/$*.$(DEPEXT) $(OBJDIR)/$*.$(DEPEXT).tmp
+	@sed -e 's|.*:|$(OBJDIR)/$*.$(OBJEXT):|' < $(OBJDIR)/$*.$(DEPEXT).tmp > $(OBJDIR)/$*.$(DEPEXT)
+	@sed -e 's/.*://' -e 's/\\$$//' < $(OBJDIR)/$*.$(DEPEXT).tmp | fmt -1 | sed -e 's/^ *//' -e 's/$$/:/' >> $(OBJDIR)/$*.$(DEPEXT)
+	@rm -f $(OBJDIR)/$*.$(DEPEXT).tmp
+
+# Non-File Targets
+.PHONY: all remake clean cleaner resources
+
+# Sources
+# https://stackoverflow.com/questions/5178125/how-to-place-object-files-in-separate-subdirectory
+# http://scottmcpeak.com/autodepend/autodepend.html
